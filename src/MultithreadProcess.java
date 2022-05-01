@@ -12,10 +12,10 @@ public class MultithreadProcess extends Thread {
 	private int burstTime;
 	private int status;
 	private int[] numResources;
+	private int stage;
 	
-	static Semaphore semaphoreA = new Semaphore(1);
-	static Semaphore semaphoreB = new Semaphore(1);
-	static Semaphore semaphoreC = new Semaphore(1);
+	static Semaphore semaphoreHolding = new Semaphore(1);
+	static Semaphore semaphoreRunning = new Semaphore(1);
 	
 	public MultithreadProcess(String name, int requiredResourceA, int requiredResourceB, 
 							  int requiredResourceC, int burstTime, int[] numResources) {
@@ -29,6 +29,11 @@ public class MultithreadProcess extends Thread {
 		this.burstTime = burstTime;
 		this.status = 0;
 		this.numResources = numResources;
+		this.stage = 0;
+	}
+	
+	public int getStage() {
+		return stage;
 	}
 
 	public int getRequiredResourceA() {
@@ -108,14 +113,18 @@ public class MultithreadProcess extends Thread {
 	
 	public void printStatus() {
 		if (getStatus() == 0) {
-			System.out.println(_getName() + " Status: Waiting...");
+			System.out.print(_getName() + " Status: Waiting...");
 		}
 		else if (getStatus() == 1) {
-			System.out.println(_getName() + " Status: Running");
+			System.out.print(_getName() + " Status: Running");
 		}
 		else if (getStatus() == 2) {
-			System.out.println(_getName() + " Status: Holding Resources~");
+			System.out.print(_getName() + " Status: Holding Resources~");
 		}
+		else if (getStatus() == 3) {
+			System.out.print(_getName() + " Status: Attemping to Hold Resources");
+		}
+		System.out.println("   STAGE: " + getStage());
 	}
 	
 	public void runProcess() {
@@ -152,31 +161,67 @@ public class MultithreadProcess extends Thread {
 	
 	public void holdingResources() {
 		int temp;
-		if (numResources[0] <= getRequiredResourceA() - getCurrentResourceA()) {
-			temp = numResources[0];
-			numResources[0] = 0;
-			setCurrentResourceA(temp);
+		if (numResources[0] != 0) {
+			if (numResources[0] >= getRequiredResourceA()) {
+				setCurrentResourceA(getRequiredResourceA());
+				numResources[0] -= getRequiredResourceA();
+			}
+			else {
+				temp = numResources[0];
+				numResources[0] = 0;
+				setCurrentResourceA(temp);
+			}
 		}
-		if (numResources[1] <= getRequiredResourceB() - getCurrentResourceB()) {
-			temp = numResources[1];
-			numResources[1] = 0;
-			setCurrentResourceA(temp);
+		
+		if (numResources[1] != 0) {
+			if (numResources[1] >= getRequiredResourceB()) {
+				setCurrentResourceB(getRequiredResourceB());
+				numResources[1] -= getRequiredResourceB();
+			}
+			else {
+				temp = numResources[1];
+				numResources[1] = 0;
+				setCurrentResourceB(temp);
+			}
 		}
-		if (numResources[2] <= getRequiredResourceC() - getCurrentResourceC()) {
-			temp = numResources[2];
-			numResources[2] = 0;
-			setCurrentResourceC(temp);
+		
+		if (numResources[2] != 0) {
+			if (numResources[2] >= getRequiredResourceC()) {
+				setCurrentResourceC(getRequiredResourceC());
+				numResources[2] -= getRequiredResourceC();
+			}
+			else {
+				temp = numResources[2];
+				numResources[2] = 0;
+				setCurrentResourceC(temp);
+			}
 		}
+		
+//		if (numResources[0] >= getRequiredResourceA() - getCurrentResourceA()) {
+//			temp = getRequiredResourceA() - getCurrentResourceA();
+//			numResources[0] = numResources[0] - temp;
+//			setCurrentResourceA(temp);
+//		}
+//		if (numResources[1] >= getRequiredResourceB() - getCurrentResourceB()) {
+//			temp = getRequiredResourceB() - getCurrentResourceB();
+//			numResources[1] = numResources[1] - temp;
+//			setCurrentResourceA(temp);
+//		}
+//		if (numResources[2] >= getRequiredResourceC() - getCurrentResourceC()) {
+//			temp = getRequiredResourceC() - getCurrentResourceC();
+//			numResources[2] = numResources[2] - temp;
+//			setCurrentResourceC(temp);
+//		}
 		setStatus(2);
 	}
 	
 	public void run() {
-		try {
-			Thread.sleep(1000 * getBurstTime());
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		try {
+//			Thread.sleep(1000 * getBurstTime());
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 		while(true) {
 			try {
 				Thread.sleep(2000);
@@ -184,28 +229,79 @@ public class MultithreadProcess extends Thread {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			if (getStatus() == 0 &&
-					numResources[0] >= getRequiredResourceA() - getCurrentResourceA() &&
-					numResources[1] >= getRequiredResourceB() - getCurrentResourceB() &&
-					numResources[2] >= getRequiredResourceC() - getCurrentResourceC()) {
-				runProcess();
+			stage = 1;
+			//System.out.println("running avail: " + semaphoreRunning.availablePermits());
+			//System.out.println("holding avail: " + semaphoreHolding.availablePermits());
+			if (numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
+					numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
+					numResources[2] >= (getRequiredResourceC() - getCurrentResourceC())) {
+				stage = 2;
+				try {
+					semaphoreRunning.acquire();
+					try {
+						runProcess();
+					} finally {
+						semaphoreRunning.release();
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				stage = 3;
+				
+				//runProcess();
 			}
 			// waiting
-			else if (getStatus() == 0) {
-				holdingResources();
+			else if ((numResources[0] <= getRequiredResourceA() - getCurrentResourceA() ||
+						numResources[1] <= getRequiredResourceB() - getCurrentResourceB() ||
+						numResources[2] <= getRequiredResourceC() - getCurrentResourceC())) {
+				setStatus(3);
+				stage = 4;
+				try {
+					semaphoreHolding.acquire();
+					try {
+						holdingResources();
+					} finally {
+						semaphoreHolding.release();
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				stage = 5;
+				
 			}
-			else if (getStatus() == 2 &&
-					(numResources[0] >= getRequiredResourceA() - getCurrentResourceA() &&
-					 numResources[1] >= getRequiredResourceB() - getCurrentResourceB() &&
-					 numResources[2] >= getRequiredResourceC() - getCurrentResourceC())) {
-				runProcess();
+			stage = 6;
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
 			}
-			else if (getStatus() == 2 &&
-					(numResources[0] < getRequiredResourceA() - getCurrentResourceA() ||
-					 numResources[1] < getRequiredResourceB() - getCurrentResourceB() ||
-					 numResources[2] < getRequiredResourceC() - getCurrentResourceC())) {
+			stage = 7;
+			if (getStatus() == 2 &&
+						(numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
+						numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
+						numResources[2] >= (getRequiredResourceC() - getCurrentResourceC()))){
+				stage = 8;
+				try {
+					semaphoreRunning.acquire();
+					try {
+						runProcess();
+					} finally {
+						semaphoreRunning.release();
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				stage = 9;
+				
+				//releaseResources();
+			}
+			else
 				releaseResources();
-			}
+			stage = 10;
 		}
 	}
 }
