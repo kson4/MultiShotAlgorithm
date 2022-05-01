@@ -16,6 +16,7 @@ public class MultithreadProcess extends Thread {
 	
 	static Semaphore semaphoreHolding = new Semaphore(1);
 	static Semaphore semaphoreRunning = new Semaphore(1);
+	static Semaphore semaphoreRelease = new Semaphore(1);
 	
 	public MultithreadProcess(String name, int requiredResourceA, int requiredResourceB, 
 							  int requiredResourceC, int burstTime, int[] numResources) {
@@ -215,6 +216,12 @@ public class MultithreadProcess extends Thread {
 		setStatus(2);
 	}
 	
+	public boolean checkAvailability() {
+		return (numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
+					numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
+					numResources[2] >= (getRequiredResourceC() - getCurrentResourceC()));
+	}
+	
 	public void run() {
 //		try {
 //			Thread.sleep(1000 * getBurstTime());
@@ -232,14 +239,13 @@ public class MultithreadProcess extends Thread {
 			stage = 1;
 			//System.out.println("running avail: " + semaphoreRunning.availablePermits());
 			//System.out.println("holding avail: " + semaphoreHolding.availablePermits());
-			if (numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
-					numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
-					numResources[2] >= (getRequiredResourceC() - getCurrentResourceC())) {
+			if (checkAvailability()) {
 				stage = 2;
 				try {
 					semaphoreRunning.acquire();
 					try {
-						runProcess();
+						if (checkAvailability())
+							runProcess();
 					} finally {
 						semaphoreRunning.release();
 					}
@@ -279,29 +285,78 @@ public class MultithreadProcess extends Thread {
 				e1.printStackTrace();
 			}
 			stage = 7;
-			if (getStatus() == 2 &&
-						(numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
-						numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
-						numResources[2] >= (getRequiredResourceC() - getCurrentResourceC()))){
-				stage = 8;
+			if (checkAvailability()) {
 				try {
+					stage = 8;
 					semaphoreRunning.acquire();
+					stage = 9;
 					try {
-						runProcess();
+						stage = 10;
+						if (checkAvailability()) {
+							stage = 11;
+							runProcess();
+						}
+						else {
+							stage = 12;
+							try {
+								semaphoreRelease.acquire();
+								try {
+									releaseResources();
+								} finally {
+									semaphoreRelease.release();
+								}
+							} catch (InterruptedException e) {
+							}
+						}
 					} finally {
+						stage = 13;
 						semaphoreRunning.release();
 					}
+					stage = 14;
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
+					stage = 15;
 					e.printStackTrace();
 				}
-				stage = 9;
-				
-				//releaseResources();
 			}
-			else
-				releaseResources();
-			stage = 10;
+			else {
+				try {
+					semaphoreRelease.acquire();
+					try {
+						releaseResources();
+					} finally {
+						semaphoreRelease.release();
+					}
+				} catch (InterruptedException e) {
+				}
+			}
+			stage = 16;
+//			if (getStatus() == 2 &&
+//						(numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
+//						numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
+//						numResources[2] >= (getRequiredResourceC() - getCurrentResourceC()))){
+//				stage = 8;
+//				try {
+//					semaphoreRunning.acquire();
+//					try {
+//						if (checkAvailability())
+//							runProcess();
+//						else
+//							releaseResources();
+//					} finally {
+//						semaphoreRunning.release();
+//					}
+//				} catch (InterruptedException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//				stage = 9;
+//				
+//				//releaseResources();
+//			}
+//			else
+//				releaseResources();
+//			stage = 10;
 		}
 	}
 }

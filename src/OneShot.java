@@ -17,7 +17,7 @@ public class OneShot {
 		p5.start();
 		
 		while(true) {
-			TimeUnit.SECONDS.sleep(1);
+			TimeUnit.MILLISECONDS.sleep(1);
 			System.out.println("Available Resources:| " + numResources[0] + " | " + numResources[1] + " | " + numResources[2]+ " | ");
 			System.out.println("------------------------------------------------");
 			System.out.println("                       CURRENT       REQUIRED");
