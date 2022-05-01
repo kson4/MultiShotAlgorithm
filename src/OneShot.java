@@ -2,7 +2,7 @@ import java.util.concurrent.TimeUnit;
 
 public class OneShot {
 	public static void main(String[] args) throws InterruptedException {
-		int[] numResources = {8,7,8};
+		int[] numResources = {10,8,20};
 		//int[] numResources = {3,10,7};
 		
 		MultithreadProcess p1 = new MultithreadProcess("Process 1", 3, 6, 7, 10, numResources);
@@ -17,7 +17,7 @@ public class OneShot {
 		p5.start();
 		
 		while(true) {
-			TimeUnit.MILLISECONDS.sleep(1);
+			TimeUnit.MILLISECONDS.sleep(100);
 			System.out.println("Available Resources:| " + numResources[0] + " | " + numResources[1] + " | " + numResources[2]+ " | ");
 			System.out.println("------------------------------------------------");
 			System.out.println("                       CURRENT       REQUIRED");
