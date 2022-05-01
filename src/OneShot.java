@@ -5,19 +5,19 @@ public class OneShot {
 		int[] numResources = {10,8,20};
 		//int[] numResources = {3,10,7};
 		
-		MultithreadProcess p1 = new MultithreadProcess("Process 1", 3, 6, 7, 10, numResources);
+		MultithreadProcess p1 = new MultithreadProcess("Process 1", 3, 6, 7, 3, numResources);
 		p1.start();
-		MultithreadProcess p2 = new MultithreadProcess("Process 2", 1, 5, 6, 3, numResources);
+		MultithreadProcess p2 = new MultithreadProcess("Process 2", 1, 5, 6, 4, numResources);
 		p2.start();
 		MultithreadProcess p3 = new MultithreadProcess("Process 3", 4, 2, 2, 5, numResources);
 		p3.start();
 		MultithreadProcess p4 = new MultithreadProcess("Process 4", 6, 3, 3, 6, numResources);
 		p4.start();
-		MultithreadProcess p5 = new MultithreadProcess("Process 5", 2, 1, 5, 8, numResources);
+		MultithreadProcess p5 = new MultithreadProcess("Process 5", 2, 1, 5, 7, numResources);
 		p5.start();
 		
 		while(true) {
-			TimeUnit.MILLISECONDS.sleep(100);
+			TimeUnit.MILLISECONDS.sleep(500);
 			System.out.println("Available Resources:| " + numResources[0] + " | " + numResources[1] + " | " + numResources[2]+ " | ");
 			System.out.println("------------------------------------------------");
 			System.out.println("                       CURRENT       REQUIRED");

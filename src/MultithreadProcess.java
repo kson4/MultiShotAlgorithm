@@ -213,12 +213,12 @@ public class MultithreadProcess extends Thread {
 	}
 	
 	public void run() {
-//		try {
-//			Thread.sleep(1000 * getBurstTime());
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+		try {
+			Thread.sleep(1000 * getBurstTime());
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		while(true) {
 			stage = 1;
 			try {
