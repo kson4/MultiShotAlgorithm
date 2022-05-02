@@ -14,9 +14,8 @@ public class MultithreadProcess extends Thread {
 	private int[] numResources;
 	private int stage;
 	
-	static Semaphore semaphoreHolding = new Semaphore(1);
-	static Semaphore semaphoreRunning = new Semaphore(1);
-	static Semaphore semaphoreRelease = new Semaphore(1);
+	static Semaphore read = new Semaphore(1);
+	static Semaphore write = new Semaphore(1);
 	
 	public MultithreadProcess(String name, int requiredResourceA, int requiredResourceB, 
 							  int requiredResourceC, int burstTime, int[] numResources) {
@@ -150,6 +149,15 @@ public class MultithreadProcess extends Thread {
 		setStatus(0);
 	}
 	
+	public void runProcess2() {
+		setStatus(1);
+		try {
+			Thread.sleep(1000 * getBurstTime());
+		} catch (InterruptedException e) {
+		}
+		setStatus(0);
+	}
+	
 	public void releaseResources() {
 		numResources[0] += getCurrentResourceA();
 		numResources[1] += getCurrentResourceB();
@@ -200,6 +208,15 @@ public class MultithreadProcess extends Thread {
 		setStatus(2);
 	}
 	
+	public void addResources() {
+		numResources[0] -= getRequiredResourceA() - getCurrentResourceA();
+		numResources[1] -= getRequiredResourceB() - getCurrentResourceB();
+		numResources[2] -= getRequiredResourceC() - getCurrentResourceC();
+		setCurrentResourceA(getRequiredResourceA());
+		setCurrentResourceB(getRequiredResourceB());
+		setCurrentResourceC(getRequiredResourceC());
+	}
+	
 	public boolean checkAvailability() {
 		return (numResources[0] >= (getRequiredResourceA() - getCurrentResourceA()) &&
 					numResources[1] >= (getRequiredResourceB() - getCurrentResourceB()) &&
@@ -227,105 +244,68 @@ public class MultithreadProcess extends Thread {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			// enough resources to run!
-			stage = 2;
 			if (checkAvailability()) {
+				stage = 2;
 				try {
 					stage = 3;
-					semaphoreRunning.acquire();
+					write.acquire();
 					try {
-						stage = 3;
-						if (checkAvailability())
-							runProcess();
-					} finally {
 						stage = 4;
-						semaphoreRunning.release();
+						if (checkAvailability()) {
+							addResources();
+							setStatus(1);
+						}
+					} finally {
+						stage = 5;
+						write.release();
 					}
-				} catch (InterruptedException e) {
-					stage = 5;
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				} catch (InterruptedException e) { 
 				}
-			}
-			// not enough resources to run
-			// check to see if there are some resources to briefly hold
-			else if (notFullyAvailable()) {
-				setStatus(3);
 				stage = 6;
-				try {
+				if (getStatus() == 1) {
 					stage = 7;
-					semaphoreHolding.acquire();
+					runProcess2();
 					try {
 						stage = 8;
+						write.acquire();
+						try {
+							stage = 9;
+							releaseResources();
+						} finally {
+							stage = 10;
+							write.release();
+						}
+					} catch (InterruptedException e) { 
+					}
+				}
+			}
+			else if (getStatus() == 0 && notFullyAvailable()){
+				stage = 11;
+				try {
+					stage = 12;
+					write.acquire();
+					try {
+						stage = 13;
 						holdingResources();
 					} finally {
-						stage = 9;
-						semaphoreHolding.release();
+						stage = 14;
+						write.release();
 					}
-				} catch (InterruptedException e) {
-					stage = 10;
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				} catch (InterruptedException e) { 
 				}
 			}
-			// currently holding resources
-			// check to see if there are enough resources to run
-			
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			
-			if (getStatus() == 2 && checkAvailability()) {
-				try {
-					stage = 11;
-					semaphoreRunning.acquire();
-					try {
-						// enough resources to run!
-						if (checkAvailability()) {
-							stage = 12;
-							runProcess();
-						}
-						// not enough resources to run
-						// release
-						else {
-							try {
-								stage = 14;
-								semaphoreRelease.acquire();
-								try {
-									stage = 15;
-									releaseResources();
-								} finally {
-									stage = 16;
-									semaphoreRelease.release();
-								}
-							} catch (InterruptedException e) {
-							}
-						}
-					} finally {
-						stage = 17;
-						semaphoreRunning.release();
-					}
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			// release all resources
 			else {
 				try {
-					stage = 18;
-					semaphoreRelease.acquire();
+					stage = 15;
+					write.acquire();
 					try {
-						stage = 19;
+						stage = 16;
 						releaseResources();
 					} finally {
-						stage = 20;
-						semaphoreRelease.release();
+						stage = 17;
+						write.release();
 					}
-				} catch (InterruptedException e) {
+				} catch (InterruptedException e) { 
 				}
 			}
 		}
